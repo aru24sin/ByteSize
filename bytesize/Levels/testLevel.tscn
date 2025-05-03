@@ -1,0 +1,33 @@
+[gd_scene load_steps=8 format=3 uid="uid://b4c3bjr2t5x36"]
+
+[ext_resource type="PackedScene" uid="uid://bkjcfxfwh4qr6" path="res://Character Controller/Player.tscn" id="1_xeujy"]
+[ext_resource type="Texture2D" uid="uid://df4wx2xpkket5" path="res://addons/kenney_prototype_textures/dark/texture_01.png" id="2_ftlgd"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_6ehle"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_faoc1"]
+albedo_texture = ExtResource("2_ftlgd")
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ftlgd"]
+
+[sub_resource type="Sky" id="Sky_6ehle"]
+sky_material = SubResource("ProceduralSkyMaterial_ftlgd")
+
+[sub_resource type="Environment" id="Environment_faoc1"]
+background_mode = 2
+background_energy_multiplier = 3.36
+sky = SubResource("Sky_6ehle")
+
+[node name="Level" type="Node3D"]
+
+[node name="Player" parent="." instance=ExtResource("1_xeujy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.60711, 0)
+
+[node name="CSGMesh3D" type="CSGMesh3D" parent="."]
+transform = Transform3D(27.2775, 0, 0, 0, 0.217719, 0, 0, 0, 28.0192, 0, -0.665384, 0)
+use_collision = true
+mesh = SubResource("BoxMesh_6ehle")
+material = SubResource("StandardMaterial3D_faoc1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_faoc1")
