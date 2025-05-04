@@ -85,7 +85,7 @@ func process_movement(delta):
 			velocity = update_velocity_air(wish_dir, delta, speed_mult)
 			wish_jump = false
 		else:
-			if is_crouching and velocity.length() > BASE_MAX_VELOCITY_GROUND * 0.5 and !is_sliding:
+			if is_crouching and !is_sliding and velocity.length() > BASE_MAX_VELOCITY_GROUND * 0.75:
 				is_sliding = true
 				slide_timer = SLIDE_TIME
 			if is_sliding:
