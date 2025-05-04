@@ -17,7 +17,6 @@ const JUMP_IMPULSE = sqrt(5 * GRAVITY * 0.85)
 const SPRINT_MULT = 2
 const CROUCH_MULT = 0.5
 const SLIDE_TIME = 0.6
-const WALL_JUMP_COOLDOWN = 0.3
 const WALLRUN_MIN_SPEED = 1.0
 const WALLRUN_CAMERA_TILT = 0.3
 
@@ -26,6 +25,7 @@ var is_sprinting = false
 var is_crouching = false
 var is_sliding = false
 var is_wallrunning = false
+var just_wall_jumped = false
 
 var slide_timer = 0.0
 var wall_normal = Vector3.ZERO
@@ -75,8 +75,6 @@ func process_movement(delta):
 	var target_head_height = 0.4 if is_crouching else 1.0
 	$Head.position.y = lerp($Head.position.y, target_head_height, 10 * delta)
 
-
-
 	if is_on_floor():
 		is_wallrunning = false
 		if wish_jump:
@@ -125,6 +123,11 @@ func update_velocity_air(wish_dir: Vector3, delta, speed_mult: float):
 	return accelerate(wish_dir, BASE_MAX_VELOCITY_AIR * speed_mult, delta)
 
 func handle_wall_interactions(wish_dir: Vector3, delta):
+	if just_wall_jumped:
+		just_wall_jumped = false
+		is_wallrunning = false
+		return
+
 	var space_state = get_world_3d().direct_space_state
 	var from_pos = global_position
 	var directions = [
@@ -144,23 +147,20 @@ func handle_wall_interactions(wish_dir: Vector3, delta):
 			wall_normal = result.normal
 			var wall_dir = -wall_normal.cross(Vector3.UP).normalized()
 
-			# Enable wallrunning state
 			is_wallrunning = true
 
-			# Stick to wall: constrain velocity along wall and reset Y
 			var wall_velocity = wall_dir * velocity.dot(wall_dir)
 			velocity.x = wall_velocity.x
 			velocity.z = wall_velocity.z
 			velocity.y = 0.0
 
-			# Robust wall jump trigger
 			if wish_jump:
 				var forward = -transform.basis.z
 				var jump_dir = (forward * 2.5 + wall_normal).normalized()
 				var jump_speed = max(velocity.length(), BASE_MAX_VELOCITY_GROUND * 1.2)
 				velocity = jump_dir * jump_speed
-				velocity.y = JUMP_IMPULSE * 0.6  # flatter jump
-				wish_jump = false  # consume jump input
+				velocity.y = JUMP_IMPULSE * 0.6
+				just_wall_jumped = true
 			break
 
 	if not is_wallrunning:
@@ -169,6 +169,5 @@ func handle_wall_interactions(wish_dir: Vector3, delta):
 func update_camera_tilt(delta):
 	var target_tilt = 0.0
 	if is_wallrunning:
-		# tilt away from the wall
 		target_tilt = -wall_normal.dot(transform.basis.x) * WALLRUN_CAMERA_TILT
 	$Head.rotation.z = lerp($Head.rotation.z, target_tilt, 5 * delta)
