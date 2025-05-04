@@ -72,7 +72,7 @@ func process_movement(delta):
 	elif is_crouching:
 		speed_mult = CROUCH_MULT
 
-	var target_head_height = 0.05 if is_crouching else 1.0
+	var target_head_height = 0.01 if is_crouching else 1.0
 	$Head.position.y = lerp($Head.position.y, target_head_height, 10 * delta)
 
 	if is_on_floor():
