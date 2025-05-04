@@ -3,13 +3,13 @@ extends CharacterBody3D
 var sensitivity = 0.1
 var direction = Vector3()
 var wish_jump = false
-var friction = 4
+var friction = 6
 
 # Movement Constants
 const BASE_MAX_VELOCITY_AIR = 2
 const BASE_MAX_VELOCITY_GROUND = 8.0
 const MAX_ACCELERATION = 20 * BASE_MAX_VELOCITY_GROUND
-const GRAVITY = 19.34
+const GRAVITY = 21.34
 const STOP_SPEED = 8
 const JUMP_IMPULSE = sqrt(5 * GRAVITY * 0.85)
 
