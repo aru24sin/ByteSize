@@ -10,11 +10,11 @@ const BASE_MAX_VELOCITY_AIR = 2
 const BASE_MAX_VELOCITY_GROUND = 8.0
 const MAX_ACCELERATION = 20 * BASE_MAX_VELOCITY_GROUND
 const GRAVITY = 19.34
-const STOP_SPEED = 2
+const STOP_SPEED = 8
 const JUMP_IMPULSE = sqrt(5 * GRAVITY * 0.85)
 
 # Modifiers
-const SPRINT_MULT = 2
+const SPRINT_MULT = 1.5
 const CROUCH_MULT = 0.5
 const SLIDE_TIME = 0.6
 const WALLRUN_MIN_SPEED = 1.0
@@ -72,7 +72,7 @@ func process_movement(delta):
 	elif is_crouching:
 		speed_mult = CROUCH_MULT
 
-	var target_head_height = 0.4 if is_crouching else 1.0
+	var target_head_height = 0.05 if is_crouching else 1.0
 	$Head.position.y = lerp($Head.position.y, target_head_height, 10 * delta)
 
 	if is_on_floor():
@@ -95,8 +95,18 @@ func process_movement(delta):
 					speed_mult = CROUCH_MULT
 				var slide_dir = wish_dir
 				if slide_dir.length() > 0:
-					velocity.x = slide_dir.x * BASE_MAX_VELOCITY_GROUND * 2.0
-					velocity.z = slide_dir.z * BASE_MAX_VELOCITY_GROUND * 2.0
+					velocity.x = slide_dir.x * BASE_MAX_VELOCITY_GROUND * 1.5
+					velocity.z = slide_dir.z * BASE_MAX_VELOCITY_GROUND * 1.5
+				else:
+					# Decelerate when not pressing input during slide
+					var flat_velocity = velocity
+					flat_velocity.y = 0
+					var decel = flat_velocity.normalized() * -10.0 * delta
+					velocity.x += decel.x
+					velocity.z += decel.z
+					if flat_velocity.length() < 0.5:
+						velocity.x = 0
+						velocity.z = 0
 			else:
 				velocity = update_velocity_ground(wish_dir, delta, speed_mult)
 	else:
@@ -157,7 +167,7 @@ func handle_wall_interactions(wish_dir: Vector3, delta):
 			if wish_jump:
 				var forward = -transform.basis.z
 				var jump_dir = (forward * 2.5 + wall_normal).normalized()
-				var jump_speed = max(velocity.length(), BASE_MAX_VELOCITY_GROUND * 1.2)
+				var jump_speed = max(velocity.length(), BASE_MAX_VELOCITY_GROUND * 1.8)
 				velocity = jump_dir * jump_speed
 				velocity.y = JUMP_IMPULSE * 0.6
 				just_wall_jumped = true
