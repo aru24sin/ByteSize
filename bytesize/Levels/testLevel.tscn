@@ -1,12 +1,9 @@
-[gd_scene load_steps=8 format=3 uid="uid://b4c3bjr2t5x36"]
+[gd_scene load_steps=15 format=3 uid="uid://b4c3bjr2t5x36"]
 
+[ext_resource type="Script" uid="uid://dyowloybcohhk" path="res://Levels/test_level.gd" id="1_6ehle"]
 [ext_resource type="PackedScene" uid="uid://bkjcfxfwh4qr6" path="res://Character Controller/Player.tscn" id="1_xeujy"]
-[ext_resource type="Texture2D" uid="uid://df4wx2xpkket5" path="res://addons/kenney_prototype_textures/dark/texture_01.png" id="2_ftlgd"]
-
-[sub_resource type="BoxMesh" id="BoxMesh_6ehle"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_faoc1"]
-albedo_texture = ExtResource("2_ftlgd")
+[ext_resource type="Texture2D" uid="uid://cbx1w3a5hnxq" path="res://addons/kenney_prototype_textures/green/texture_01.png" id="2_ftlgd"]
+[ext_resource type="Texture2D" uid="uid://dr1o4sns0niij" path="res://addons/kenney_prototype_textures/purple/texture_01.png" id="4_faoc1"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ftlgd"]
 
@@ -18,16 +15,52 @@ background_mode = 2
 background_energy_multiplier = 3.36
 sky = SubResource("Sky_6ehle")
 
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_6ehle"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_faoc1"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6ehle"]
+albedo_texture = ExtResource("2_ftlgd")
+
+[sub_resource type="BoxMesh" id="BoxMesh_houwy"]
+material = SubResource("StandardMaterial3D_6ehle")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_owrup"]
+albedo_texture = ExtResource("4_faoc1")
+
+[sub_resource type="BoxMesh" id="BoxMesh_ovcht"]
+material = SubResource("StandardMaterial3D_owrup")
+size = Vector3(18, 14, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pdwhj"]
+size = Vector3(18, 14, 1)
+
 [node name="Level" type="Node3D"]
+script = ExtResource("1_6ehle")
 
 [node name="Player" parent="." instance=ExtResource("1_xeujy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.60711, 0)
 
-[node name="CSGMesh3D" type="CSGMesh3D" parent="."]
-transform = Transform3D(27.2775, 0, 0, 0, 0.217719, 0, 0, 0, 28.0192, 0, -0.665384, 0)
-use_collision = true
-mesh = SubResource("BoxMesh_6ehle")
-material = SubResource("StandardMaterial3D_faoc1")
-
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_faoc1")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(50.693, 0, 0, 0, 0.2, 0, 0, 0, 47.124, 0, 0, 0)
+physics_material_override = SubResource("PhysicsMaterial_6ehle")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+shape = SubResource("BoxShape3D_faoc1")
+debug_color = Color(0.444521, 0.895225, 1, 0.42)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
+mesh = SubResource("BoxMesh_houwy")
+
+[node name="StaticBody3D2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 18)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D2"]
+mesh = SubResource("BoxMesh_ovcht")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D2"]
+shape = SubResource("BoxShape3D_pdwhj")

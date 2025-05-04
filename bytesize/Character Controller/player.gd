@@ -2,16 +2,33 @@ extends CharacterBody3D
 
 var sensitivity = 0.1
 var direction = Vector3()
-var wish_jump
+var wish_jump = false
 var friction = 4
 
-# Movement
-const MAX_VELOCITY_AIR = 0.8
-const MAX_VELOCITY_GROUND = 8.0
-const MAX_ACCELERATION = 15 * MAX_VELOCITY_GROUND
-const GRAVITY = 15.34
+# Movement Constants
+const BASE_MAX_VELOCITY_AIR = 2
+const BASE_MAX_VELOCITY_GROUND = 8.0
+const MAX_ACCELERATION = 20 * BASE_MAX_VELOCITY_GROUND
+const GRAVITY = 19.34
 const STOP_SPEED = 2
-const JUMP_IMPULSE = sqrt(2 * GRAVITY * 0.85)
+const JUMP_IMPULSE = sqrt(5 * GRAVITY * 0.85)
+
+# Modifiers
+const SPRINT_MULT = 2
+const CROUCH_MULT = 0.5
+const SLIDE_TIME = 0.6
+const WALL_JUMP_COOLDOWN = 0.3
+const WALLRUN_MIN_SPEED = 1.0
+const WALLRUN_CAMERA_TILT = 0.3
+
+# State
+var is_sprinting = false
+var is_crouching = false
+var is_sliding = false
+var is_wallrunning = false
+
+var slide_timer = 0.0
+var wall_normal = Vector3.ZERO
 
 func _ready():
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -21,21 +38,18 @@ func _input(event):
 		_handle_camera_rotation(event)
 
 func _handle_camera_rotation(event: InputEvent):
-	# Rotate the camera based on the mouse movement
 	rotate_y(deg_to_rad(-event.relative.x * sensitivity))
 	$Head.rotate_x(deg_to_rad(-event.relative.y * sensitivity))
-	
-	# Stop the head from rotating to far up or down
 	$Head.rotation.x = clamp($Head.rotation.x, deg_to_rad(-60), deg_to_rad(90))
-	
+
 func _physics_process(delta):
 	process_input()
 	process_movement(delta)
-	
+	update_camera_tilt(delta)
+
 func process_input():
 	direction = Vector3()
-	
-	# Movement directions
+
 	if Input.is_action_pressed("forward"):
 		direction -= transform.basis.z
 	elif Input.is_action_pressed("backward"):
@@ -44,55 +58,117 @@ func process_input():
 		direction -= transform.basis.x
 	elif Input.is_action_pressed("right"):
 		direction += transform.basis.x
-		
-	# Jumping
+
 	wish_jump = Input.is_action_just_pressed("jump")
-	
+	is_sprinting = Input.is_action_pressed("sprint")
+	is_crouching = Input.is_action_pressed("crouch")
+
 func process_movement(delta):
-	# Get the normalized input direction so that we don't move faster on diagonals
 	var wish_dir = direction.normalized()
+	var speed_mult = 1.0
+
+	if is_sprinting and is_on_floor() and !is_crouching:
+		speed_mult = SPRINT_MULT
+	elif is_crouching:
+		speed_mult = CROUCH_MULT
+
+	var target_head_height = 0.4 if is_crouching else 1.0
+	$Head.position.y = lerp($Head.position.y, target_head_height, 10 * delta)
+
+
 
 	if is_on_floor():
-		# If wish_jump is true then we won't apply any friction and allow the 
-		# player to jump instantly, this gives us a single frame where we can 
-		# perfectly bunny hop
+		is_wallrunning = false
 		if wish_jump:
 			velocity.y = JUMP_IMPULSE
-			# Update velocity as if we are in the air
-			velocity = update_velocity_air(wish_dir, delta)
+			if is_sliding:
+				var flat_dir = direction.normalized(); flat_dir.y = 0
+				velocity += flat_dir * 6.0
+			velocity = update_velocity_air(wish_dir, delta, speed_mult)
 			wish_jump = false
 		else:
-			velocity = update_velocity_ground(wish_dir, delta)
+			if is_crouching and velocity.length() > BASE_MAX_VELOCITY_GROUND * 0.5 and !is_sliding:
+				is_sliding = true
+				slide_timer = SLIDE_TIME
+			if is_sliding:
+				slide_timer -= delta
+				if slide_timer <= 0 or !is_crouching:
+					is_sliding = false
+					speed_mult = CROUCH_MULT
+				var slide_dir = wish_dir
+				if slide_dir.length() > 0:
+					velocity.x = slide_dir.x * BASE_MAX_VELOCITY_GROUND * 2.0
+					velocity.z = slide_dir.z * BASE_MAX_VELOCITY_GROUND * 2.0
+			else:
+				velocity = update_velocity_ground(wish_dir, delta, speed_mult)
 	else:
-		# Only apply gravity while in the air
 		velocity.y -= GRAVITY * delta
-		velocity = update_velocity_air(wish_dir, delta)
+		velocity = update_velocity_air(wish_dir, delta, speed_mult)
+		handle_wall_interactions(wish_dir, delta)
 
-	# Move the player once velocity has been calculated
 	move_and_slide()
-	
+
 func accelerate(wish_dir: Vector3, max_velocity: float, delta):
-	# Get our current speed as a projection of velocity onto the wish_dir
 	var current_speed = velocity.dot(wish_dir)
-	# How much we accelerate is the difference between the max speed and the current speed
-	# clamped to be between 0 and MAX_ACCELERATION which is intended to stop you from going too fast
 	var add_speed = clamp(max_velocity - current_speed, 0, MAX_ACCELERATION * delta)
-	
 	return velocity + add_speed * wish_dir
-	
-func update_velocity_ground(wish_dir: Vector3, delta):
-	# Apply friction when on the ground and then accelerate
+
+func update_velocity_ground(wish_dir: Vector3, delta, speed_mult: float):
 	var speed = velocity.length()
-	
 	if speed != 0:
 		var control = max(STOP_SPEED, speed)
 		var drop = control * friction * delta
-		
-		# Scale the velocity based on friction
 		velocity *= max(speed - drop, 0) / speed
-	
-	return accelerate(wish_dir, MAX_VELOCITY_GROUND, delta)
-	
-func update_velocity_air(wish_dir: Vector3, delta):
-	# Do not apply any friction
-	return accelerate(wish_dir, MAX_VELOCITY_AIR, delta)
+	return accelerate(wish_dir, BASE_MAX_VELOCITY_GROUND * speed_mult, delta)
+
+func update_velocity_air(wish_dir: Vector3, delta, speed_mult: float):
+	return accelerate(wish_dir, BASE_MAX_VELOCITY_AIR * speed_mult, delta)
+
+func handle_wall_interactions(wish_dir: Vector3, delta):
+	var space_state = get_world_3d().direct_space_state
+	var from_pos = global_position
+	var directions = [
+		transform.basis.x,
+		-transform.basis.x,
+		transform.basis.z,
+		-transform.basis.z
+	]
+
+	is_wallrunning = false
+	for dir in directions:
+		var ray_params = PhysicsRayQueryParameters3D.create(from_pos, from_pos + dir.normalized() * 1.2)
+		ray_params.exclude = [self]
+		var result = space_state.intersect_ray(ray_params)
+
+		if result and not is_on_floor():
+			wall_normal = result.normal
+			var wall_dir = -wall_normal.cross(Vector3.UP).normalized()
+
+			# Enable wallrunning state
+			is_wallrunning = true
+
+			# Stick to wall: constrain velocity along wall and reset Y
+			var wall_velocity = wall_dir * velocity.dot(wall_dir)
+			velocity.x = wall_velocity.x
+			velocity.z = wall_velocity.z
+			velocity.y = 0.0
+
+			# Robust wall jump trigger
+			if wish_jump:
+				var forward = -transform.basis.z
+				var jump_dir = (forward * 2.5 + wall_normal).normalized()
+				var jump_speed = max(velocity.length(), BASE_MAX_VELOCITY_GROUND * 1.2)
+				velocity = jump_dir * jump_speed
+				velocity.y = JUMP_IMPULSE * 0.6  # flatter jump
+				wish_jump = false  # consume jump input
+			break
+
+	if not is_wallrunning:
+		wall_normal = Vector3.ZERO
+
+func update_camera_tilt(delta):
+	var target_tilt = 0.0
+	if is_wallrunning:
+		# tilt away from the wall
+		target_tilt = -wall_normal.dot(transform.basis.x) * WALLRUN_CAMERA_TILT
+	$Head.rotation.z = lerp($Head.rotation.z, target_tilt, 5 * delta)
